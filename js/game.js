@@ -1,21 +1,57 @@
-var game = new Phaser.Game(800, 600, Phaser.CANVAS, 'phaser-example', { preload: preload, create: create, update: update, render: render });
-
-function preload() {
-
-    game.load.image('dude', 'assets/player_1_front.png', 32, 48);
-    game.load.image('earth', 'assets/scorched_earth.png');
-
-}
+console.log("Will I print?");
 
 var player;
 //var facing = 'left';
 var myID=0;
-var avatar;
+var alien;
 var cursors;
 var jumpButton;
 var bg;
+var createID = 1;
 
-Player = function(index, game, player){
+var ready = false;
+var eurecaServer;
+//this function will handle client communication with the server
+var eurecaClientSetup = function() {
+    //create an instance of eureca.io client
+    var eurecaClient = new Eureca.Client();
+    
+    eurecaClient.ready(function (proxy) {       
+        eurecaServer = proxy;
+    });
+
+    eurecaClient.exports.setID = function(id){
+        myID = id;
+        create();
+        eurecaServer.handshake();
+        ready = true;
+    } 
+
+    eurecaClient.exports.createPlayer = function(i){
+        if(i == myID) return;
+
+        var playa = new Player(i, game, alien, createID);
+        playerList[i] = playa;
+    }
+
+    eurecaClient.exports.destroyPlayer = function(id){
+        if(playerList[id]){
+            playerList[id].kill();
+            console.log("Killing player ", id, playerList[id]);
+        }
+    }
+
+    eurecaClient.exports.updateState = function(id, state){
+        if(playerList[id]) {
+            playerList[id].cursor = state;
+            playerList[id].alien.x = state.x;
+            playerList[id].alien.y = state.y;
+            playerList[id].update();
+        }
+    }
+}
+
+Player = function(index, game, player, pSide){
     this.cursor = {
         left:false,
         right:false,
@@ -29,33 +65,57 @@ Player = function(index, game, player){
         up:false,
         fire:false
     }
-
-    this.avatar = game.add.sprite(0, 600, 'dude');
+    //this.alien = game.add.sprite(0, 600, 'dude');
+    if(pSide == 1){
+        this.alien = game.add.sprite(0, 600, 'dude');
+    }
+    else if(pSide == 2){
+        this.alien = game.add.sprite(0, 600, 'bro');
+    }
     var jumping = false;
-    game.physics.enable(this.avatar, Phaser.Physics.ARCADE);
+    var x = 0;
+    var y = 0;
+    game.physics.enable(this.alien, Phaser.Physics.ARCADE);
     game.physics.arcade.gravity.y = 250;
-    this.avatar.body.collideWorldBounds = true;
+    this.alien.body.collideWorldBounds = true;
 };
 
 Player.prototype.update = function(){
-    for(var i in this.input) this.cursor[i] = this.input[i];
+    var inputChanged = (this.cursor.left != this.input.left ||
+                        this.cursor.right!= this.input.right ||
+                        this.cursor.up != this.input.up);
+    if(inputChanged){
+        if(this.alien.id = myID) {
+            this.input.x = this.alien.x;
+            this.input.y = this.alien.y;
 
-    this.avatar.body.velocity.x = 0;
-    this.avatar.body.velocity.y = 0;
-    this.avatar.body.bounce.y = 0.2;
+            eurecaServer.handleKeys(this.input);
+        }
+    }
+
+    this.alien.body.velocity.x = 0;
     if(this.cursor.left){
-        this.avatar.body.velocity.x = -250;
+        this.alien.body.velocity.x = -250;
     }
     else if(this.cursor.right){
-        this.avatar.body.velocity.x = 250;
+        this.alien.body.velocity.x = 250;
     }
-    if(this.cursor.up && this.avatar.body.onFloor()){
-        this.avatar.body.velocity.y = -250;
+    if(this.cursor.up && this.alien.body.onFloor()){
+        this.alien.body.velocity.y = -250;
     }
+}
+var game = new Phaser.Game(800, 600, Phaser.AUTO, 'phaser-example', { preload: preload, create: eurecaClientSetup, update: update, render: render });
+
+function preload() {
+
+    game.load.image('dude', 'assets/player_1_front.png', 32, 48);
+    game.load.image('bro', 'assets/player_1_side.png', 32, 48);
+    game.load.image('earth', 'assets/background.png');
+    console.log("Loaded the assets.");
 }
 
 function create() {
-
+    if(createID > 2) createID = 1;
     game.physics.startSystem(Phaser.Physics.ARCADE);
 
     game.time.desiredFps = 30;
@@ -66,25 +126,19 @@ function create() {
 
     playerList = {};
     //player = game.add.sprite(32, 32, 'dude');
-    player = new Player(myID, game, avatar);
+    player = new Player(myID, game, alien,createID);
     playerList[myID] = player;
-    pImage = player.avatar;
-    //game.physics.enable(player, Phaser.Physics.ARCADE);
-
-    //player.body.bounce.y = 0.2;
-    //player.body.collideWorldBounds = true;
-    //player.body.setSize(20, 32, 5, 16);
-
-    //player.animations.add('left', [0, 1, 2, 3], 10, true);
-    //player.animations.add('turn', [4], 20, true);
-    //player.animations.add('right', [5, 6, 7, 8], 10, true);
+    pImage = player.alien;
 
     cursors = game.input.keyboard.createCursorKeys();
     jumpButton = game.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR);
 
+    createID ++;
 }
 
 function update() {
+
+    if(!ready) return;
 
     // game.physics.arcade.collide(player, layer);
     player.input.left = cursors.left.isDown;
@@ -101,51 +155,6 @@ function update() {
         if(!playerList[i]) continue;
         playerList[i].update();
     }
-    /*if (cursors.left.isDown)
-    {
-        player.body.velocity.x = -150;
-
-        /*if (facing != 'left')
-        {
-            player.animations.play('left');
-            facing = 'left';
-        }
-    }
-    else if (cursors.right.isDown)
-    {
-        player.body.velocity.x = 150;
-
-        /*if (facing != 'right')
-        {
-            player.animations.play('right');
-            facing = 'right';
-        }
-    }
-    else
-    {
-        if (facing != 'idle')
-        {
-            player.animations.stop();
-
-            if (facing == 'left')
-            {
-                player.frame = 0;
-            }
-            else
-            {
-                player.frame = 5;
-            }
-
-            facing = 'idle';
-        }
-    }
-    
-    if (jumpButton.isDown && player.body.onFloor() && game.time.now > jumpTimer)
-    {
-        player.body.velocity.y = -250;
-        jumpTimer = game.time.now + 750;
-    }*/
-
 }
 
 function render () {
