@@ -7,6 +7,7 @@ var alien;
 var cursors;
 var jumpButton;
 var bg;
+var gamesFServ = {};
 
 var ready = false;
 var eurecaServer;
@@ -15,6 +16,8 @@ var eurecaClientSetup = function() {
     //create an instance of eureca.io client
     var eurecaClient = new Eureca.Client();
     
+    gamesFServ.push(eurecaServer.getGames());
+
     eurecaClient.ready(function (proxy) {       
         eurecaServer = proxy;
     });
@@ -27,8 +30,24 @@ var eurecaClientSetup = function() {
         ready = true;
     }
 
-    eurecaClient.exports.createG = function(theGame){
+    eurecaClient.exports.createG = function(player, gameID){
+        var gameCreated = {
+            id : gameID,
+            hostingClient:player,
+            secondClient:null,
+            playerCount:1
+        };
+        this.gamesFServ[gameCreated.id] = gameCreated;
+
+        this.gameCount ++;
+
         create();
+    }
+
+    eurecaClient.exports.joinGame = function(player){
+        if(eurecaServer.games){
+            eurecaServer.games[secondClient] = player;
+        }
     }
 
     eurecaClient.exports.createPlayer = function(i){

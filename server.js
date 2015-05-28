@@ -65,28 +65,39 @@ eurecaServer.exports.handshake = function() {
 }
 
 eurecaServer.exports.findGame = function(player) {
-	if(this.gameCount){
-		var joiningGame = false;
-		for(var gameId in this.games){
-			if(!this.games.hasOwnProperty(gameId)) continue;
-
-			var gameInstance = this.games[gameId];
-			if(gameInstance.playerCount < 2){
-				joiningGame = true;
-				this.joinGame(player);
+	var gameID = UUID();
+	for(var c in clients){
+		var remote = clients[c].remote;
+		if(this.gameCount){
+			var joiningGame = false;
+			for(var gameId in this.games){
+				if(!this.games.hasOwnProperty(gameId)) continue;
+					var gameInstance = this.games[gameId];
+					if(gameInstance.playerCount < 2){
+						joiningGame = true;
+						remote.joinGame(player);
+					}
+				}
+			if(!joiningGame){
+				remote.createGame(player, gameID);
 			}
 		}
-		if(!joiningGame){
-			this.createGame(player);
+		else { 
+			console.log("Attempt to create the first game.");
+			remote.createG(player, gameID);
 		}
-	}
-	else { 
-		console.log("Attempt to create the first game.");
-		this.createGame(player);
-	}
+	}		
 }
 
-eurecaServer.createGame = function(player){
+eurecaServer.exports.getGames = function(){
+	var allGames = new Object();
+	for(var g in gameServer){
+		allGames[g] = gameServer[g];
+	}
+	return gameServer;
+}
+
+/*eurecaServer.createGame = function(player){
 	var gameCreated = {
 		id : UUID(),
 		hostingClient:player,
@@ -101,13 +112,13 @@ eurecaServer.createGame = function(player){
 		remote.createG(gameCreated);	
 	}
 	return gameCreated;
-}
+}*/
 
-eurecaServer.joinGame = function(player){
+/*eurecaServer.joinGame = function(player){
 	if(games){
 		this.games[secondClient] = player;
 	}
-}
+}*/
 
 server.listen(9090);
 
