@@ -7,7 +7,6 @@ var alien;
 var cursors;
 var jumpButton;
 var bg;
-var createID = 1;
 
 var ready = false;
 var eurecaServer;
@@ -22,10 +21,15 @@ var eurecaClientSetup = function() {
 
     eurecaClient.exports.setID = function(id){
         myID = id;
-        create();
+        //create();
+        eurecaServer.findGame();
         eurecaServer.handshake();
         ready = true;
-    } 
+    }
+
+    eurecaClient.exports.createG = function(theGame){
+        create();
+    }
 
     eurecaClient.exports.createPlayer = function(i){
         if(i == myID) return;
@@ -115,7 +119,6 @@ function preload() {
 }
 
 function create() {
-    if(createID > 2) createID = 1;
     game.physics.startSystem(Phaser.Physics.ARCADE);
 
     game.time.desiredFps = 30;
@@ -133,7 +136,6 @@ function create() {
     cursors = game.input.keyboard.createCursorKeys();
     jumpButton = game.input.keyboard.addKey(Phaser.Keyboard.SPACEBAR);
 
-    createID ++;
 }
 
 function update() {
@@ -164,5 +166,4 @@ function render () {
     // game.debug.text(game.time.physicsElapsed, 32, 32);
     // game.debug.body(player);
     // game.debug.bodyInfo(player, 16, 24);
-
 }

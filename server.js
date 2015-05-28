@@ -1,13 +1,16 @@
+//Written by Romain Cerovic
+
 var express = require("express"),
 	app = express(app),
-	server = require("http").createServer(app);
-
+	server = require("http").createServer(app),
+	gameServer = {games: {}, gameCount:0},
+	UUID = require("node-uuid");
 
 app.use(express.static(__dirname));
 
 var Eureca = require("eureca.io");
 
-var eurecaServer = new Eureca.Server({allow:["setID", "createPlayer","destroyPlayer", "updateState"]});
+var eurecaServer = new Eureca.Server({allow:["setID","createG", "createPlayer","destroyPlayer", "updateState"]});
 var clients = {};
 
 eurecaServer.attach(server);
@@ -20,6 +23,8 @@ eurecaServer.onConnect(function(player){
 	clients[player.id] = {id: player.id, remote:remote};
 
 	remote.setID(player.id);
+
+	console.log(remote);
 });
 
 eurecaServer.onDisconnect(function(player){
@@ -56,6 +61,51 @@ eurecaServer.exports.handshake = function() {
 			var y = clients[cc].lastState ? clients[cc].lastState.y: 0;
 			remote.createPlayer(clients[cc].id);
 		}
+	}
+}
+
+eurecaServer.exports.findGame = function(player) {
+	if(this.gameCount){
+		var joiningGame = false;
+		for(var gameId in this.games){
+			if(!this.games.hasOwnProperty(gameId)) continue;
+
+			var gameInstance = this.games[gameId];
+			if(gameInstance.playerCount < 2){
+				joiningGame = true;
+				this.joinGame(player);
+			}
+		}
+		if(!joiningGame){
+			this.createGame(player);
+		}
+	}
+	else { 
+		console.log("Attempt to create the first game.");
+		this.createGame(player);
+	}
+}
+
+eurecaServer.createGame = function(player){
+	var gameCreated = {
+		id : UUID(),
+		hostingClient:player,
+		secondClient:null,
+		playerCount:1
+	};
+	this.games[gameCreated.id] = gameCreated;
+
+	this.gameCount++;
+	for(var c in clients){
+		var remote = clients[c].remote;
+		remote.createG(gameCreated);	
+	}
+	return gameCreated;
+}
+
+eurecaServer.joinGame = function(player){
+	if(games){
+		this.games[secondClient] = player;
 	}
 }
 
